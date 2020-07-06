@@ -1,0 +1,69 @@
+#python语言
+
+import pandas as pd
+import time
+data = pd.read_excel('ETL_数据清洗挑战.xlsx','测试数据',dtype=str)#读取数据
+data_dict = data.to_dict(orient = 'dict')#将数据转换为字典
+#print(data['CHECK_POINT'])
+
+listDate = []#创建列表并初始化
+for cell in data_dict['CHECK_POINT'].values():#遍历字典当中keys='CHECK_POINT'的values
+    if(len(cell) == 11):#判定日期数据的格式是否统一
+        cell = str(cell)#将日期数据转化为字符串
+        cell = cell[:-1]#统一日期格式
+        date = time.strptime(str(cell),"%Y-%m-%d")#确定日期格式
+        date = time.strftime('%Y-%m-%d',date)#规定日期格式
+    else:
+        date = time.strptime(str(cell), "%Y-%m-%d")#确定日期格式
+        date = time.strftime('%Y-%m-%d',date)#规定日期格式
+    #print(date)
+    listDate.append(date)#将统一后的日期存入列表
+data_dict['CHECK_POINT'] = listDate#更新数据字典
+#print(listDate)
+
+id_list = {}#创建列表并初始化
+index = 0#初始化索引为'0'
+for id in data_dict['ID'].values():#遍历keys = 'ID'的values
+    #print(data_dict['ID'].values())
+    if id not in id_list.keys():#判断列表的keys值，
+        id_list[id] = []#初始化id_list
+    id_list[id].append(index)#将keys相等的index存入id_list中
+    index+=1#存入index后自增
+#print(id_list)
+day_dict = {}#创建字典
+for i,j in id_list.items():#遍历id_list，i,j,分别存放keys和values
+    seq_no_list = [data_dict['SEQ_NO'][no] for no in j]#将keys相等的'SEQ_NO'分类存放
+    chect_point_list = [data_dict['CHECK_POINT'][no] for no in j]#将keys相等的'CHECK_POINT'分类存放
+    data_list = list(zip(seq_no_list,chect_point_list))#合并列表
+    #print(data_list)
+    for rows in range(len(data_list)-1,-1,-1):#因为要删除列表中的某些信息，避免遍历时数据超出边界，所以倒序遍历列表
+        df = data_list[rows]#变量df存放当前indexs的values
+        if(df[0] != '0034') and (df[0] != '0036') and (df[0] != '0048'):#判断values的值是否为需要判断的'0034'、'0036'、'0048'
+            data_list.remove(df)#使用remove()函数执行删除操作
+    #print(data_list)
+    for rows in range(len(data_list)-1,-1,-1):#因为要删除列表中的某些信息，避免遍历时数据超出边界，所以倒序遍历列表
+        df1 = data_list[rows]#变量df1存放当前index的values
+        df2 = data_list[rows - 1]#变量df2存放当前index.next的values
+        if(df1[0] == '0034') and (df2[0] == '0034'):#判断是否有重复的'SEQ_NO'，重复时按照规则删掉相应的冗余值
+            data_list.remove(df1)#使用remove()函数执行删除操作
+        elif(df1[0] == '0036') and (df2[0] == '0036'):#同上
+            df3 = data_list[rows - 2]#使用remove()函数执行删除操作
+            #print(df3)
+            if(df3[0] == '0034'):#同上
+                data_list.remove(df2)#使用remove()函数执行删除操作
+            else:
+                data_list.remove(df1)#使用remove()函数执行删除操作
+        elif(df1[0] == '0048') and (df2[0] == '0048'):#同上
+            data_list.remove(df2)#使用remove()函数执行删除操作
+    day_dict[i] = data_list[0:]#将列表按照'ID'分类并存放到day_dict字典中
+    #print(data_list)
+#print(day_dict)
+
+for keys,values in day_dict.items():#分别使用变量keys,values,来遍历day_dict
+    days = 0#初始化天数
+    for cell in range(len(values)-1,-1,-1):#倒序遍历values的values
+        if(values[cell][0] == '0048') and ((values[cell-1][0] == '0036') or (values[cell-1][0] == '0034')):#确定start_day和end_day的范围
+            start_day = int(str(values[cell-1][1])[8:])#将日期中的天数转化为int型并存放到start_day中
+            end_day = int(str(values[cell][1])[8:])#将日期中的天数转化为int型并存放到end_day中
+            if(end_day > start_day) and ((end_day - start_day) > 0):#判断日期的时间顺序是否正确
+                days += (end_day - start_day)#将日期的天数进行累加
